@@ -215,24 +215,22 @@ if (
         </form>
 
         {mensagem && (
-          <div className="mt-8">
-  <h2 className="text-2xl font-bold mb-4">
-    Agenda de Reservas
-  </h2>
+  <div className="mt-8">
+    <h2 className="text-2xl font-bold mb-4">
+      Agenda de Reservas
+    </h2>
 
-  {lista.length === 0 ? (
-    <p>Nenhuma reserva ainda.</p>
-  ) : (
-    <div className="space-y-3">
-      {lista.map((item, index) => (
-        <div key={index} className="border p-3 rounded-xl">
-          <p className="font-bold">{item.nome}</p>
-          <p>{item.data} - {item.horario}</p>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
-  );
-}
-```
+    {lista.length === 0 ? (
+      <p>Nenhuma reserva ainda.</p>
+    ) : (
+      <div className="space-y-3">
+        {lista.map((item, index) => (
+          <div key={index} className="border p-3 rounded-xl">
+            <p className="font-bold">{item.nome}</p>
+            <p>{item.data} - {item.horario}</p>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}

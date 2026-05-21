@@ -1,22 +1,35 @@
 import React from "react";
 
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyCzFEnWx3SyOwuIGeDkqo6iHN0kFND_qPA",
-  authDomain: "visitas-hospital-web.firebaseapp.com",
-  projectId: "visitas-hospital-web",
-  storageBucket: "visitas-hospital-web.firebasestorage.app",
-  messagingSenderId: "935263770851",
-  appId: "1:935263770851:web:34666ddf3feb3f18b38dd6"
-};
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+} from "firebase/firestore";
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+//JavaScript
+
+React.useEffect(() => {
+  carregarVisitas();
+}, []);
+
+async function carregarVisitas() {
+  const querySnapshot = await getDocs(collection(db, "visitas"));
+
+  const visitas = [];
+
+  querySnapshot.forEach((doc) => {
+    visitas.push(doc.data());
+  });
+
+  setLista(visitas);
+}
 
 export default function SistemaVisitas() {
   const horariosSemana = [
@@ -86,7 +99,7 @@ export default function SistemaVisitas() {
     return quantidade < horarioInfo.limite;
   };
 
-  const salvarVisita = (e) => {
+  const salvarVisita = async (e) => {
     e.preventDefault();
 
     if (!nome || !data || !horario) {
@@ -109,8 +122,7 @@ export default function SistemaVisitas() {
 
     const novaLista = [...lista, novaVisita];
 
-    localStorage.setItem("visitas", JSON.stringify(novaLista));
-
+await addDoc(collection(db, "visitas"), novaVisita);
     setLista(novaLista);
 
     setMensagem("Visita agendada com sucesso.");

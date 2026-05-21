@@ -1,26 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function App() {
   const [data, setData] = useState("");
   const [horario, setHorario] = useState("");
   const [nome, setNome] = useState("");
   const [lista, setLista] = useState([]);
-
-  // carregar dados salvos
-  useEffect(() => {
-    const dadosSalvos = JSON.parse(localStorage.getItem("lista")) || [];
-    setLista(dadosSalvos);
-  }, []);
-
-  // salvar no localStorage sempre que mudar lista
-  useEffect(() => {
-    localStorage.setItem("lista", JSON.stringify(lista));
-  }, [lista]);
+  const [mensagem, setMensagem] = useState("");
 
   function verificarDisponibilidade(horarioSelecionado, dataSelecionada) {
     const diaSemana = new Date(dataSelecionada + "T00:00:00").getDay();
 
-    // Sexta-feira bloqueada (Adriana)
+    // 🔴 BLOQUEIO SEXTA 14H ÀS 15H
     if (
       diaSemana === 5 &&
       (horarioSelecionado === "14:00 às 14:30" ||
@@ -34,12 +24,12 @@ export default function App() {
 
   function reservar() {
     if (!nome || !data || !horario) {
-      alert("Preencha todos os campos");
+      setMensagem("Preencha todos os campos");
       return;
     }
 
     if (!verificarDisponibilidade(horario, data)) {
-      alert("Horário bloqueado para este dia");
+      setMensagem("Horário bloqueado na sexta-feira (14h às 15h)");
       return;
     }
 
@@ -54,10 +44,11 @@ export default function App() {
     setNome("");
     setData("");
     setHorario("");
+    setMensagem("Reserva realizada com sucesso!");
   }
 
   return (
-    <div style={{ padding: 20, maxWidth: 500 }}>
+    <div style={{ padding: 20, maxWidth: 500, margin: "0 auto" }}>
       <h1>Sistema de Reservas</h1>
 
       <input
@@ -81,34 +72,42 @@ export default function App() {
         <option value="14:00 às 14:30">14:00 às 14:30</option>
         <option value="14:30 às 15:00">14:30 às 15:00</option>
         <option value="15:00 às 15:30">15:00 às 15:30</option>
+        <option value="15:30 às 16:00">15:30 às 16:00</option>
       </select>
 
       <br /><br />
 
       <button onClick={reservar}>Reservar</button>
 
-      {/* 🔥 AGENDA SEM ERRO */}
+      {/* 🔵 MENSAGEM */}
+      {mensagem && (
+        <p style={{ marginTop: 10, fontWeight: "bold" }}>
+          {mensagem}
+        </p>
+      )}
+
+      {/* 🔥 AGENDA ABAIXO DO BOTÃO */}
       <div style={{ marginTop: 30 }}>
-        <h2>Agenda de Reservas</h2>
+        <h2>Agenda de Reservas da Semana</h2>
 
         {lista.length === 0 ? (
           <p>Nenhuma reserva ainda.</p>
         ) : (
-          lista.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                border: "1px solid #ccc",
-                padding: 10,
-                marginBottom: 10,
-              }}
-            >
-              <strong>{item.nome}</strong>
-              <p>
-                {item.data} - {item.horario}
-              </p>
-            </div>
-          ))
+          <div>
+            {lista.map((item, index) => (
+              <div
+                key={index}
+                style={{
+                  border: "1px solid #ccc",
+                  padding: 10,
+                  marginBottom: 10,
+                }}
+              >
+                <p><strong>{item.nome}</strong></p>
+                <p>{item.data} - {item.horario}</p>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>

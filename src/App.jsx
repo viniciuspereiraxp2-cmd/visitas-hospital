@@ -1,114 +1,280 @@
-import { useState } from "react";
+import React from "react";
+import { db } from "./firebase";
+import {
+  collection,
+  addDoc,
+  getDocs,
+} from "firebase/firestore";
 
 export default function App() {
-  const [data, setData] = useState("");
-  const [horario, setHorario] = useState("");
-  const [nome, setNome] = useState("");
-  const [lista, setLista] = useState([]);
-  const [mensagem, setMensagem] = useState("");
+  const [nome, setNome] = React.useState("");
+  const [data, setData] = React.useState("");
+  const [horario, setHorario] = React.useState("");
+  const [mensagem, setMensagem] = React.useState("");
+  const [lista, setLista] = React.useState([]);
 
-  function verificarDisponibilidade(horarioSelecionado, dataSelecionada) {
-    const diaSemana = new Date(dataSelecionada + "T00:00:00").getDay();
+  const horariosSemana = [
+    { horario: "14:00 às 14:30", limite: 1 },
+    { horario: "14:30 às 15:00", limite: 1 },
+    { horario: "20:00 às 20:30", limite: 1 },
+  ];
 
-    // 🔴 BLOQUEIO SEXTA 14H ÀS 15H
-    if (
-      diaSemana === 5 &&
-      (horarioSelecionado === "14:00 às 14:30" ||
-        horarioSelecionado === "14:30 às 15:00")
-    ) {
+  const horariosFimSemana = [
+    { horario: "11:00 às 11:30", limite: 1 },
+    { horario: "11:30 às 12:00", limite: 1 },
+  ];
+
+  const diasSemana = [
+    "Domingo",
+    "Segunda-feira",
+    "Terça-feira",
+    "Quarta-feira",
+    "Quinta-feira",
+    "Sexta-feira",
+    "Sábado",
+  ];
+
+  React.useEffect(() => {
+    carregarVisitas();
+  }, []);
+
+  async function carregarVisitas() {
+    const querySnapshot = await getDocs(collection(db, "visitas"));
+
+    const visitas = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    setLista(visitas);
+  }
+
+  const obterHorarios = () => {
+    if (!data) return [];
+
+    const dia = new Date(data + "T00:00:00").getDay();
+
+    if (dia === 0 || dia === 6) {
+      return horariosFimSemana;
+    }
+
+    return horariosSemana;
+  };
+
+  // 🔥 BLOQUEIO SEXTA A PARTIR DE 29/05/2026
+  const verificarDisponibilidade = (
+    horarioSelecionado,
+    dataSelecionada
+  ) => {
+
+    const dataAtual = new Date(
+      dataSelecionada + "T00:00:00"
+    );
+
+    const sextaBloqueada =
+      dataAtual >= new Date("2026-05-29T00:00:00") &&
+      dataAtual.getDay() === 5 &&
+      (
+        horarioSelecionado === "14:00 às 14:30" ||
+        horarioSelecionado === "14:30 às 15:00"
+      );
+
+    if (sextaBloqueada) {
       return false;
     }
 
-    return true;
-  }
+    const horarios = obterHorarios();
 
-  function reservar() {
+    const horarioInfo = horarios.find(
+      (item) => item.horario === horarioSelecionado
+    );
+
+    if (!horarioInfo) return false;
+
+    const quantidade = lista.filter(
+      (item) =>
+        item.data === dataSelecionada &&
+        item.horario === horarioSelecionado
+    ).length;
+
+    return quantidade < horarioInfo.limite;
+  };
+
+  const salvarVisita = async (e) => {
+    e.preventDefault();
+
     if (!nome || !data || !horario) {
-      setMensagem("Preencha todos os campos");
+      setMensagem("Preencha todos os campos.");
       return;
     }
 
     if (!verificarDisponibilidade(horario, data)) {
-      setMensagem("Horário bloqueado na sexta-feira (14h às 15h)");
+      setMensagem(
+        "Horário bloqueado para Adriana."
+      );
       return;
     }
 
-    const novaReserva = {
+    const novaVisita = {
       nome,
       data,
       horario,
     };
 
-    setLista([...lista, novaReserva]);
+    await addDoc(collection(db, "visitas"), novaVisita);
+
+    await carregarVisitas();
+
+    setMensagem("Visita agendada com sucesso.");
 
     setNome("");
     setData("");
     setHorario("");
-    setMensagem("Reserva realizada com sucesso!");
-  }
+  };
+
+  // 📅 AGRUPAR POR DIA
+  const agruparPorDia = () => {
+    const agrupado = {};
+
+    lista.forEach((item) => {
+      const dataObj = new Date(item.data + "T00:00:00");
+      const diaNome = diasSemana[dataObj.getDay()];
+
+      if (!agrupado[diaNome]) {
+        agrupado[diaNome] = [];
+      }
+
+      agrupado[diaNome].push(item);
+    });
+
+    return agrupado;
+  };
 
   return (
-    <div style={{ padding: 20, maxWidth: 500, margin: "0 auto" }}>
-      <h1>Sistema de Reservas</h1>
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+      <div className="bg-white p-6 rounded-3xl shadow-2xl w-full max-w-2xl">
+        <h1 className="text-3xl font-bold text-center mb-6">
+          Agendamento de Visitas
+        </h1>
 
-      <input
-        placeholder="Nome"
-        value={nome}
-        onChange={(e) => setNome(e.target.value)}
-      />
+        <form onSubmit={salvarVisita} className="space-y-4">
 
-      <br /><br />
+          <input
+            type="text"
+            placeholder="Nome"
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className="w-full border p-3 rounded-xl"
+          />
 
-      <input
-        type="date"
-        value={data}
-        onChange={(e) => setData(e.target.value)}
-      />
+          <input
+            type="date"
+            value={data}
+            onChange={(e) => {
+              setData(e.target.value);
+              setHorario("");
+            }}
+            className="w-full border p-3 rounded-xl"
+          />
 
-      <br /><br />
+          <select
+            value={horario}
+            onChange={(e) => setHorario(e.target.value)}
+            className="w-full border p-3 rounded-xl"
+          >
+            <option value="">
+              Selecione o horário
+            </option>
 
-      <select value={horario} onChange={(e) => setHorario(e.target.value)}>
-        <option value="">Selecione horário</option>
-        <option value="14:00 às 14:30">14:00 às 14:30</option>
-        <option value="14:30 às 15:00">14:30 às 15:00</option>
-        <option value="15:00 às 15:30">15:00 às 15:30</option>
-        <option value="15:30 às 16:00">15:30 às 16:00</option>
-      </select>
+            {obterHorarios().map((item) => {
 
-      <br /><br />
+              const dataAtual = data
+                ? new Date(data + "T00:00:00")
+                : null;
 
-      <button onClick={reservar}>Reservar</button>
+              const sextaBloqueada =
+                dataAtual &&
+                dataAtual >= new Date("2026-05-29T00:00:00") &&
+                dataAtual.getDay() === 5 &&
+                (
+                  item.horario === "14:00 às 14:30" ||
+                  item.horario === "14:30 às 15:00"
+                );
 
-      {/* 🔵 MENSAGEM */}
-      {mensagem && (
-        <p style={{ marginTop: 10, fontWeight: "bold" }}>
-          {mensagem}
-        </p>
-      )}
+              const quantidade = lista.filter(
+                (visita) =>
+                  visita.data === data &&
+                  visita.horario === item.horario
+              ).length;
 
-      {/* 🔥 AGENDA ABAIXO DO BOTÃO */}
-      <div style={{ marginTop: 30 }}>
-        <h2>Agenda de Reservas da Semana</h2>
+              const disponivel =
+                quantidade < item.limite &&
+                !sextaBloqueada;
 
-        {lista.length === 0 ? (
-          <p>Nenhuma reserva ainda.</p>
-        ) : (
-          <div>
-            {lista.map((item, index) => (
-              <div
-                key={index}
-                style={{
-                  border: "1px solid #ccc",
-                  padding: 10,
-                  marginBottom: 10,
-                }}
-              >
-                <p><strong>{item.nome}</strong></p>
-                <p>{item.data} - {item.horario}</p>
-              </div>
-            ))}
+              return (
+                <option
+                  key={item.horario}
+                  value={item.horario}
+                  disabled={!disponivel}
+                >
+                  {item.horario}
+
+                  {!disponivel && !sextaBloqueada
+                    ? " - LOTADO"
+                    : ""}
+
+                  {sextaBloqueada
+                    ? " - Adriana"
+                    : ""}
+                </option>
+              );
+            })}
+          </select>
+
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-3 rounded-xl"
+          >
+            Reservar
+          </button>
+        </form>
+
+        {mensagem && (
+          <div className="mt-4 text-center font-bold">
+            {mensagem}
           </div>
         )}
+
+        {/* 📅 AGENDA SEMANAL */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">
+            Agenda da Semana
+          </h2>
+
+          {lista.length === 0 ? (
+            <p>Nenhum agendamento ainda.</p>
+          ) : (
+            Object.entries(agruparPorDia()).map(([dia, itens]) => (
+              <div key={dia} className="mb-4">
+                <h3 className="font-bold text-lg mb-2">
+                  {dia}
+                </h3>
+
+                {itens.map((item, index) => (
+                  <div
+                    key={index}
+                    className="border p-2 rounded mb-2"
+                  >
+                    <strong>{item.nome}</strong>
+                    <p>
+                      {item.data} - {item.horario}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
